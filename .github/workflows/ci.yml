@@ -1,0 +1,49 @@
+name: OpsView CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build API (Backend)
+      uses: docker/build-push-action@v5
+      with:
+        context: ./apps/api
+        file: ./apps/api/Dockerfile
+        push: false
+        tags: opsview-api:test
+
+    - name: Build Client (Frontend)
+      uses: docker/build-push-action@v5
+      with:
+        context: ./apps/client
+        file: ./apps/client/Dockerfile
+        push: false
+        tags: opsview-client:test
+
+    - name: Spin up Stack (Integration Test)
+      run: |
+        docker compose up -d
+        sleep 10
+        docker ps -a
+        
+    - name: Check Health
+      run: |
+        if curl -s http://localhost:3000/health | grep "ok"; then
+          echo "Backend is healthy!"
+        else
+          echo "Backend failed health check"
+          exit 1
+        fi

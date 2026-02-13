@@ -1,0 +1,24 @@
+services:
+  # Backend Dev Override
+  backend:
+    build:
+      target: builder # Use the stage WITH dev dependencies (typescript, ts-node-dev)
+    command: npm run dev
+    volumes:
+      - ./apps/api:/app
+      - /app/node_modules # Anonymous volume to preserve container node_modules
+    environment:
+      - NODE_ENV=development
+
+  # Frontend Dev Override
+  frontend:
+    build:
+      target: builder # Use Node.js stage, NOT Nginx
+    command: npm run dev -- --host # Run Vite server, expose to host
+    ports:
+      - "5173:5173" # Vite default port
+    volumes:
+      - ./apps/client:/app
+      - /app/node_modules # Anonymous volume to preserve container node_modules
+    environment:
+      - NODE_ENV=development

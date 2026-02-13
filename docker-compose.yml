@@ -1,0 +1,121 @@
+services:
+  # API Gateway / Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: opsview-nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - public-net
+
+  # Frontend (React)
+  frontend:
+    build:
+      context: ./apps/client
+      dockerfile: Dockerfile
+    container_name: opsview-client
+    restart: unless-stopped
+    networks:
+      - public-net
+    healthcheck:
+      test: [ "CMD", "wget", "-q", "--spider", "http://localhost:80" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Backend (Express)
+  backend:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    container_name: opsview-api
+    restart: unless-stopped
+    environment:
+      - PORT=3000
+      - DATABASE_URL=postgresql://user:password@postgres:5432/opsview
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - public-net
+      - private-net
+    healthcheck:
+      test: [ "CMD", "wget", "-q", "--spider", "http://localhost:3000/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Database (Postgres)
+  postgres:
+    image: postgres:15-alpine
+    container_name: opsview-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: opsview
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - private-net
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U user -d opsview" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Cache (Redis)
+  redis:
+    image: redis:7-alpine
+    container_name: opsview-redis
+    restart: unless-stopped
+    networks:
+      - private-net
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # Monitoring (Prometheus)
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: opsview-prometheus
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    networks:
+      - private-net
+      - public-net
+
+  # Monitoring (Grafana)
+  grafana:
+    image: grafana/grafana:latest
+    container_name: opsview-grafana
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+    volumes:
+      - ./infra/grafana/provisioning:/etc/grafana/provisioning
+    networks:
+      - public-net
+
+networks:
+  public-net:
+    driver: bridge
+  private-net:
+    internal: true
+
+volumes:
+  postgres_data:
