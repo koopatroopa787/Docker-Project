@@ -35,6 +35,8 @@ services:
       dockerfile: Dockerfile
     container_name: opsview-api
     restart: unless-stopped
+    ports:
+      - "3000:3000"
     environment:
       - PORT=3000
       - DATABASE_URL=postgresql://user:password@postgres:5432/opsview
