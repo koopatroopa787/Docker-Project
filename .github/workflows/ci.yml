@@ -40,7 +40,7 @@ jobs:
         
     - name: Check Health
       run: |
-        if curl -s http://localhost:3000/health | grep "ok"; then
+        if curl -s http://localhost:3001/health | grep "ok"; then
           echo "Backend is healthy!"
         else
           echo "Backend failed health check"
