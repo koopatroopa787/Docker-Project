@@ -35,8 +35,7 @@ jobs:
 
     - name: Spin up Stack (Integration Test)
       run: |
-        docker compose up -d
-        sleep 10
+        docker compose up -d --wait
         docker ps -a
         
     - name: Check Health
