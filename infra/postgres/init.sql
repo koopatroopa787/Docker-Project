@@ -1,0 +1,5 @@
+CREATE TABLE IF NOT EXISTS events (
+    id BIGSERIAL PRIMARY KEY,
+    type TEXT NOT NULL,
+    payload JSONB
+);
